@@ -2,10 +2,7 @@
     xmlns:tools="http://schemas.android.com/tools"
     package="dev.applicazza.flutter.plugins.whatsapp_stickers">
     <application
-        android:name="io.flutter.app.FlutterApplication"
-        tools:ignore="GoogleAppIndexingWarning"
-        android:allowBackup="false"
-        android:fullBackupContent="false">
+        android:name="io.flutter.app.FlutterApplication">
 
         <provider
             android:name=".StickerContentProvider"

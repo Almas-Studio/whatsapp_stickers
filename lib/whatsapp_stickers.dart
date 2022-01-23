@@ -1,5 +1,4 @@
 import 'package:flutter/services.dart';
-import 'package:meta/meta.dart';
 
 import 'exceptions.dart';
 
@@ -12,15 +11,15 @@ class WhatsappStickers {
   final String name;
   final String publisher;
   final WhatsappStickerImage trayImageFileName;
-  String publisherWebsite;
-  String privacyPolicyWebsite;
-  String licenseAgreementWebsite;
+  String? publisherWebsite;
+  String? privacyPolicyWebsite;
+  String? licenseAgreementWebsite;
 
   WhatsappStickers({
-    @required this.identifier,
-    @required this.name,
-    @required this.publisher,
-    @required this.trayImageFileName,
+    required this.identifier,
+    required this.name,
+    required this.publisher,
+    required this.trayImageFileName,
     this.publisherWebsite,
     this.privacyPolicyWebsite,
     this.licenseAgreementWebsite,
@@ -45,25 +44,25 @@ class WhatsappStickers {
     } on PlatformException catch (e) {
       switch (e.code) {
         case WhatsappStickersFileNotFoundException.CODE:
-          throw WhatsappStickersFileNotFoundException(e.message);
+          throw WhatsappStickersFileNotFoundException(e.message ?? '-');
         case WhatsappStickersNumOutsideAllowableRangeException.CODE:
-          throw WhatsappStickersNumOutsideAllowableRangeException(e.message);
+          throw WhatsappStickersNumOutsideAllowableRangeException(e.message ?? '-');
         case WhatsappStickersUnsupportedImageFormatException.CODE:
-          throw WhatsappStickersUnsupportedImageFormatException(e.message);
+          throw WhatsappStickersUnsupportedImageFormatException(e.message ?? '-');
         case WhatsappStickersImageTooBigException.CODE:
-          throw WhatsappStickersImageTooBigException(e.message);
+          throw WhatsappStickersImageTooBigException(e.message ?? '-');
         case WhatsappStickersIncorrectImageSizeException.CODE:
-          throw WhatsappStickersIncorrectImageSizeException(e.message);
+          throw WhatsappStickersIncorrectImageSizeException(e.message ?? '-');
         case WhatsappStickersAnimatedImagesNotSupportedException.CODE:
-          throw WhatsappStickersAnimatedImagesNotSupportedException(e.message);
+          throw WhatsappStickersAnimatedImagesNotSupportedException(e.message ?? '-');
         case WhatsappStickersTooManyEmojisException.CODE:
-          throw WhatsappStickersTooManyEmojisException(e.message);
+          throw WhatsappStickersTooManyEmojisException(e.message ?? '-');
         case WhatsappStickersEmptyStringException.CODE:
-          throw WhatsappStickersEmptyStringException(e.message);
+          throw WhatsappStickersEmptyStringException(e.message ?? '-');
         case WhatsappStickersStringTooLongException.CODE:
-          throw WhatsappStickersStringTooLongException(e.message);
+          throw WhatsappStickersStringTooLongException(e.message ?? '-');
         default:
-          throw WhatsappStickersException(e.message);
+          throw WhatsappStickersException(e.message ?? '-');
       }
     }
   }
