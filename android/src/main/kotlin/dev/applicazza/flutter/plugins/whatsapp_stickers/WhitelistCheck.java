@@ -18,28 +18,22 @@ import android.net.Uri;
 
 import androidx.annotation.NonNull;
 
-@SuppressWarnings("FieldCanBeLocal")
 class WhitelistCheck {
     private static final String AUTHORITY_QUERY_PARAM = "authority";
     private static final String IDENTIFIER_QUERY_PARAM = "identifier";
-
-    public static String CONSUMER_WHATSAPP_PACKAGE_NAME = "com.whatsapp";
-    public static String SMB_WHATSAPP_PACKAGE_NAME = "com.whatsapp.w4b";
-    private static String CONTENT_PROVIDER = ".provider.sticker_whitelist_check";
-    private static String QUERY_PATH = "is_whitelisted";
-    private static String QUERY_RESULT_COLUMN_NAME = "result";
-
-    private static String TAG = "WhitelistCheck";
+    static final String CONSUMER_WHATSAPP_PACKAGE_NAME = "com.whatsapp";
+    static final String SMB_WHATSAPP_PACKAGE_NAME = "com.whatsapp.w4b";
+    private static final String CONTENT_PROVIDER = ".provider.sticker_whitelist_check";
+    private static final String QUERY_PATH = "is_whitelisted";
+    private static final String QUERY_RESULT_COLUMN_NAME = "result";
 
     static boolean isWhitelisted(@NonNull Context context, @NonNull String identifier) {
         try {
             if (!isWhatsAppConsumerAppInstalled(context.getPackageManager()) && !isWhatsAppSmbAppInstalled(context.getPackageManager())) {
                 return false;
             }
-
             boolean consumerResult = isStickerPackWhitelistedInWhatsAppConsumer(context, identifier);
             boolean smbResult = isStickerPackWhitelistedInWhatsAppSmb(context, identifier);
-
             return consumerResult && smbResult;
         } catch (Exception e) {
             return false;
@@ -56,42 +50,36 @@ class WhitelistCheck {
 
     private static boolean isWhitelistedFromProvider(@NonNull Context context, @NonNull String identifier, String whatsappPackageName) {
         final PackageManager packageManager = context.getPackageManager();
-
         if (isPackageInstalled(whatsappPackageName, packageManager)) {
-            final String whatsAppProviderAuthority = whatsappPackageName + CONTENT_PROVIDER;
-            final ProviderInfo providerInfo = packageManager.resolveContentProvider(whatsAppProviderAuthority, PackageManager.GET_META_DATA);
-
+            final String whatsappProviderAuthority = whatsappPackageName + CONTENT_PROVIDER;
+            final ProviderInfo providerInfo = packageManager.resolveContentProvider(whatsappProviderAuthority, PackageManager.GET_META_DATA);
             // provider is not there. The WhatsApp app may be an old version.
             if (providerInfo == null) {
                 return false;
             }
-
-            final Uri queryUri = new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT)
-                    .authority(whatsAppProviderAuthority)
-                    .appendPath(QUERY_PATH)
-                    .appendQueryParameter(AUTHORITY_QUERY_PARAM, WhatsappStickersPlugin.getContentProviderAuthority(context))
-                    .appendQueryParameter(IDENTIFIER_QUERY_PARAM, identifier).build();
-
+            final Uri queryUri = new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(whatsappProviderAuthority).appendPath(QUERY_PATH).appendQueryParameter(AUTHORITY_QUERY_PARAM, WhatsappStickersPlugin.getContentProviderAuthority(context)).appendQueryParameter(IDENTIFIER_QUERY_PARAM, identifier).build();
             try (final Cursor cursor = context.getContentResolver().query(queryUri, null, null, null, null)) {
                 if (cursor != null && cursor.moveToFirst()) {
                     final int whiteListResult = cursor.getInt(cursor.getColumnIndexOrThrow(QUERY_RESULT_COLUMN_NAME));
-
                     return whiteListResult == 1;
                 }
             }
         } else {
-            // if app is not installed, then don't need to take into its whitelist info into account.
+            //if app is not installed, then don't need to take into its whitelist info into account.
             return true;
         }
         return false;
     }
 
-    private static boolean isPackageInstalled(String packageName, PackageManager packageManager) {
+    static boolean isPackageInstalled(String packageName, PackageManager packageManager) {
         try {
             final ApplicationInfo applicationInfo = packageManager.getApplicationInfo(packageName, 0);
-
             //noinspection SimplifiableIfStatement
-            return applicationInfo.enabled;
+            if (applicationInfo != null) {
+                return applicationInfo.enabled;
+            } else {
+                return false;
+            }
         } catch (PackageManager.NameNotFoundException e) {
             return false;
         }

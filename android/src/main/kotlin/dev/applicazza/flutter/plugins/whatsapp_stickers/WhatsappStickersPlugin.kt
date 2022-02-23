@@ -6,7 +6,6 @@ import android.content.ContentResolver
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
-import android.util.Log
 import androidx.annotation.NonNull
 import io.flutter.embedding.engine.plugins.FlutterPlugin
 import io.flutter.embedding.engine.plugins.activity.ActivityAware
@@ -16,12 +15,10 @@ import io.flutter.plugin.common.MethodChannel
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler
 import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
-import io.flutter.plugin.common.PluginRegistry.Registrar
-import java.io.File
 
 
 /** WhatsappStickersPlugin */
-public class WhatsappStickersPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegistry.ActivityResultListener {
+class WhatsappStickersPlugin: FlutterPlugin, MethodCallHandler, ActivityAware, PluginRegistry.ActivityResultListener {
   /// The MethodChannel that will the communication between Flutter and native Android
   ///
   /// This local reference serves to register the plugin with the Flutter Engine and unregister it
@@ -59,14 +56,9 @@ public class WhatsappStickersPlugin: FlutterPlugin, MethodCallHandler, ActivityA
     private const val EXTRA_STICKER_PACK_NAME = "sticker_pack_name"
 
     @JvmStatic
-    fun registerWith(registrar: Registrar) {
-      val channel = MethodChannel(registrar.messenger(), "whatsapp_stickers")
-      channel.setMethodCallHandler(WhatsappStickersPlugin())
-    }
-
-    @JvmStatic
     fun getContentProviderAuthorityURI(context: Context): Uri{
-      return Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(getContentProviderAuthority(context)).appendPath(StickerContentProvider.METADATA).build()
+      return Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(getContentProviderAuthority(context))
+        .appendPath(StickerContentProvider.METADATA).build()
     }
 
     @JvmStatic

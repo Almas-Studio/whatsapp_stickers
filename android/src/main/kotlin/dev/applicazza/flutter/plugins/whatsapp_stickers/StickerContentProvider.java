@@ -18,25 +18,18 @@ import android.content.res.AssetManager;
 import android.database.Cursor;
 import android.database.MatrixCursor;
 import android.net.Uri;
-import android.os.ParcelFileDescriptor;
 import android.text.TextUtils;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 
-import org.json.JSONException;
-
-import java.io.File;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-
-import static dev.applicazza.flutter.plugins.whatsapp_stickers.ConfigFileManager.CONTENT_FILE_NAME;
 
 public class StickerContentProvider extends ContentProvider {
 
@@ -55,9 +48,13 @@ public class StickerContentProvider extends ContentProvider {
     public static final String LICENSE_AGREENMENT_WEBSITE = "sticker_pack_license_agreement_website";
     public static final String IMAGE_DATA_VERSION = "image_data_version";
     public static final String AVOID_CACHE = "whatsapp_will_not_cache_stickers";
+    public static final String ANIMATED_STICKER_PACK = "animated_sticker_pack";
 
     public static final String STICKER_FILE_NAME_IN_QUERY = "sticker_file_name";
     public static final String STICKER_FILE_EMOJI_IN_QUERY = "sticker_emoji";
+    private static final String CONTENT_FILE_NAME = "contents.json";
+
+    // public static final Uri AUTHORITY_URI = new Uri.Builder().scheme(ContentResolver.SCHEME_CONTENT).authority(BuildConfig.CONTENT_PROVIDER_AUTHORITY).appendPath(StickerContentProvider.METADATA).build();
 
     /**
      * Do not change the values in the UriMatcher because otherwise, WhatsApp will not be able to fetch the stickers from the ContentProvider.
@@ -85,13 +82,6 @@ public class StickerContentProvider extends ContentProvider {
             throw new IllegalStateException("your authority (" + authority + ") for the content provider should start with your package name: " + getContext().getPackageName());
         }
 
-        // generate config JSON file if not exists
-        try {
-            ConfigFileManager.generateConfigFile(getContext());
-        } catch (JSONException e) {
-            e.printStackTrace();
-        }
-
         //the call to get the metadata for the sticker packs.
         MATCHER.addURI(authority, METADATA, METADATA_CODE);
 
@@ -101,8 +91,12 @@ public class StickerContentProvider extends ContentProvider {
         //gets the list of stickers for a sticker pack, * respresent the identifier.
         MATCHER.addURI(authority, STICKERS + "/*", STICKERS_CODE);
 
-        // Gets the an asset from a sticker pack
-        MATCHER.addURI(authority, STICKERS_ASSET + "/*/*", STICKERS_ASSET_CODE);
+        for (StickerPack stickerPack : getStickerPackList()) {
+            MATCHER.addURI(authority, STICKERS_ASSET + "/" + stickerPack.identifier + "/" + stickerPack.trayImageFile, STICKER_PACK_TRAY_ICON_CODE);
+            for (Sticker sticker : stickerPack.getStickers()) {
+                MATCHER.addURI(authority, STICKERS_ASSET + "/" + stickerPack.identifier + "/" + sticker.imageFileName, STICKERS_ASSET_CODE);
+            }
+        }
 
         return true;
     }
@@ -135,17 +129,14 @@ public class StickerContentProvider extends ContentProvider {
 
     @Override
     public String getType(@NonNull Uri uri) {
-        final Context context = getContext();
-        assert context != null;
-
         final int matchCode = MATCHER.match(uri);
         switch (matchCode) {
             case METADATA_CODE:
-                return "vnd.android.cursor.dir/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(context) + "." + METADATA;
+                return "vnd.android.cursor.dir/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(getContext()) + "." + METADATA;
             case METADATA_CODE_FOR_SINGLE_PACK:
-                return "vnd.android.cursor.item/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(context) + "." + METADATA;
+                return "vnd.android.cursor.item/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(getContext()) + "." + METADATA;
             case STICKERS_CODE:
-                return "vnd.android.cursor.dir/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(context) + "." + STICKERS;
+                return "vnd.android.cursor.dir/vnd." + WhatsappStickersPlugin.getContentProviderAuthority(getContext()) + "." + STICKERS;
             case STICKERS_ASSET_CODE:
                 return "image/webp";
             case STICKER_PACK_TRAY_ICON_CODE:
@@ -156,8 +147,7 @@ public class StickerContentProvider extends ContentProvider {
     }
 
     private synchronized void readContentFile(@NonNull Context context) {
-        final File file = new File(ConfigFileManager.getConfigFilePath(context));
-        try (InputStream contentsInputStream = new FileInputStream(file)) {
+        try (InputStream contentsInputStream = context.getAssets().open(CONTENT_FILE_NAME)) {
             stickerPackList = ContentFileParser.parseStickerPacks(contentsInputStream);
         } catch (IOException | IllegalStateException e) {
             throw new RuntimeException(CONTENT_FILE_NAME + " file has some issues: " + e.getMessage(), e);
@@ -202,6 +192,7 @@ public class StickerContentProvider extends ContentProvider {
                         LICENSE_AGREENMENT_WEBSITE,
                         IMAGE_DATA_VERSION,
                         AVOID_CACHE,
+                        ANIMATED_STICKER_PACK,
                 });
         for (StickerPack stickerPack : stickerPackList) {
             MatrixCursor.RowBuilder builder = cursor.newRow();
@@ -217,6 +208,7 @@ public class StickerContentProvider extends ContentProvider {
             builder.add(stickerPack.licenseAgreementWebsite);
             builder.add(stickerPack.imageDataVersion);
             builder.add(stickerPack.avoidCache ? 1 : 0);
+            builder.add(stickerPack.animatedStickerPack ? 1 : 0);
         }
         cursor.setNotificationUri(Objects.requireNonNull(getContext()).getContentResolver(), uri);
         return cursor;
@@ -268,36 +260,15 @@ public class StickerContentProvider extends ContentProvider {
         return null;
     }
 
-    private AssetFileDescriptor fetchFile(@NonNull final Uri uri, @NonNull final AssetManager am,
-                                          @NonNull final String fileName, @NonNull final String identifier) {
-        return (fileName.contains("_MZN_AD_")) ? fetchAssetFile(uri, am, fileName, identifier) : fetchNonAssetFile(uri, fileName, identifier);
-    }
-
-    private AssetFileDescriptor fetchNonAssetFile(final Uri uri, final String fileName, final String identifier) {
+    private AssetFileDescriptor fetchFile(@NonNull Uri uri, @NonNull AssetManager am, @NonNull String fileName, @NonNull String identifier) {
         try {
-            String fname = fileName.replace("_MZN_FD_", File.separator);
-            final File file = new File(fname);
-            return new AssetFileDescriptor(ParcelFileDescriptor.open(file, ParcelFileDescriptor.MODE_READ_ONLY), 0,
-                    AssetFileDescriptor.UNKNOWN_LENGTH);
-        } catch (final IOException e) {
-            Log.e(Objects.requireNonNull(getContext()).getPackageName(),
-                    "IOException when getting asset file, uri:" + uri, e);
+            return am.openFd(identifier + "/" + fileName);
+        } catch (IOException e) {
+            Log.e(Objects.requireNonNull(getContext()).getPackageName(), "IOException when getting asset file, uri:" + uri, e);
             return null;
         }
     }
 
-    private AssetFileDescriptor fetchAssetFile(@NonNull final Uri uri, @NonNull final AssetManager am,
-                                               @NonNull final String fileName, @NonNull final String identifier) {
-        try {
-            String fname = fileName.replace("_MZN_AD_", File.separator);
-            String f = "flutter_assets/"+fname;
-            return am.openFd(f);
-        } catch (final IOException e) {
-            Log.e(Objects.requireNonNull(getContext()).getPackageName(),
-                    "IOException when getting asset file, uri:" + uri, e);
-            return null;
-        }
-    }
 
     @Override
     public int delete(@NonNull Uri uri, @Nullable String selection, String[] selectionArgs) {

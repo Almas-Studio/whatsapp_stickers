@@ -14,12 +14,14 @@ class WhatsappStickers {
   String? publisherWebsite;
   String? privacyPolicyWebsite;
   String? licenseAgreementWebsite;
+  bool animated;
 
   WhatsappStickers({
     required this.identifier,
     required this.name,
     required this.publisher,
     required this.trayImageFileName,
+    this.animated = false,
     this.publisherWebsite,
     this.privacyPolicyWebsite,
     this.licenseAgreementWebsite,
@@ -40,6 +42,7 @@ class WhatsappStickers {
       payload['privacyPolicyWebsite'] = privacyPolicyWebsite;
       payload['licenseAgreementWebsite'] = licenseAgreementWebsite;
       payload['stickers'] = _stickers;
+      payload['animated'] = animated;
       await _channel.invokeMethod('sendToWhatsApp', payload);
     } on PlatformException catch (e) {
       switch (e.code) {
